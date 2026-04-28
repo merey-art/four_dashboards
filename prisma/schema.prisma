@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ClientServiceOrder {
+  id               String   @id @default(cuid())
+  clientName       String
+  orderNumber      String
+  quantity         Int
+  expectedDelivery DateTime
+  codeIssued       Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model LogisticsContainer {
+  id              String   @id @default(cuid())
+  containerNumber String
+  borderCrossing  String
+  routeNote       String?
+  status          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LegalContract {
+  id               String    @id @default(cuid())
+  counterparty     String
+  partyType        String
+  phase            String
+  originalReceived Boolean   @default(false)
+  contractDate     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model AccountingAct {
+  id                String    @id @default(cuid())
+  counterpartName   String
+  party             String
+  actKind           String
+  actDate           DateTime?
+  originalReceived  Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
