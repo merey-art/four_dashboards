@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Neon / Vercel: apply schema and seed (one-time)
+
+Vercel does not run migrations or seeds automatically. From your machine, with `DATABASE_URL` pointing at the **same** Neon database your deployment uses (from the Neon dashboard; use the **direct** (non-pooled) connection string for migrations if Neon offers both; add `?sslmode=require` if needed):
+
+```bash
+export DATABASE_URL="postgresql://..."   # or use a local .env
+npm ci
+npm run db:migrate:deploy
+npm run db:seed
+```
+
+Commit `prisma/migrations` with the app so `migrate deploy` stays reproducible. After the first deploy, re-run only `db:migrate:deploy` when you add new migration folders.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
