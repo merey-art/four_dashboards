@@ -7,6 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum DashboardKind {
+  ACCOUNTING
+  LEGAL
+  LOGISTICS
+  CLIENT_SERVICE
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+}
+
+model DashboardCustomColumn {
+  id        String          @id @default(cuid())
+  dashboard DashboardKind
+  key       String
+  label     String
+  fieldType CustomFieldType
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([dashboard, key])
+  @@index([dashboard, sortOrder])
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -24,6 +52,7 @@ model ClientServiceOrder {
   quantity         Int
   expectedDelivery DateTime
   codeIssued       Boolean  @default(false)
+  customFields     Json     @default("{}")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -34,6 +63,7 @@ model LogisticsContainer {
   borderCrossing  String
   routeNote       String?
   status          String
+  customFields    Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -45,6 +75,7 @@ model LegalContract {
   phase            String
   originalReceived Boolean   @default(false)
   contractDate     DateTime?
+  customFields     Json      @default("{}")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -56,6 +87,7 @@ model AccountingAct {
   actKind           String
   actDate           DateTime?
   originalReceived  Boolean   @default(false)
+  customFields      Json      @default("{}")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }

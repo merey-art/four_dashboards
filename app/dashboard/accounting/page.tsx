@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
 import { AccountingDialogs } from "@/components/dashboards/accounting-toolbar";
+import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
+import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
+import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
 import { StatusBadge } from "@/components/status-badge";
+import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { formatDateRu } from "@/lib/i18n";
 import { parseIsoDateRange, prismaDateRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -21,10 +25,24 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
 
   const where = drift ? { actDate: drift } : {};
 
-  const rows = await prisma.accountingAct.findMany({
-    where,
-    orderBy: { actDate: "desc" },
-  });
+  const [rows, customColumns] = await Promise.all([
+    prisma.accountingAct.findMany({
+      where,
+      orderBy: { actDate: "desc" },
+    }),
+    prisma.dashboardCustomColumn.findMany({
+      where: { dashboard: "ACCOUNTING" },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
+
+  const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
+    id: c.id,
+    key: c.key,
+    label: c.label,
+    fieldType: c.fieldType,
+    sortOrder: c.sortOrder,
+  }));
 
   const recoSuppliers = rows.filter((r) => r.actKind === "RECONCILIATION" && r.party === "SUPPLIER").length;
   const recoClients = rows.filter((r) => r.actKind === "RECONCILIATION" && r.party === "CLIENT").length;
@@ -46,6 +64,8 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
       </Suspense>
 
       <AccountingDialogs />
+
+      <DashboardColumnManager dashboard="ACCOUNTING" initialColumns={customColumnViews} />
 
       <div className="grid gap-3 md:grid-cols-4">
         <Card>
@@ -87,20 +107,40 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
                   <TableHead>Наименование</TableHead>
                   <TableHead>Дата акта</TableHead>
                   <TableHead>Оригинал</TableHead>
+                  {customColumnViews.map((col) => (
+                    <TableHead key={col.id}>{col.label}</TableHead>
+                  ))}
+                  {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliersRows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.counterpartName}</TableCell>
-                    <TableCell>{formatDateRu(r.actDate)}</TableCell>
-                    <TableCell>
-                      <StatusBadge tone={r.originalReceived ? "success" : "destructive"}>
-                        {r.originalReceived ? "Да" : "Нет"}
-                      </StatusBadge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {suppliersRows.map((r) => {
+                  const fi = customFieldsAsRecord(r.customFields);
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.counterpartName}</TableCell>
+                      <TableCell>{formatDateRu(r.actDate)}</TableCell>
+                      <TableCell>
+                        <StatusBadge tone={r.originalReceived ? "success" : "destructive"}>
+                          {r.originalReceived ? "Да" : "Нет"}
+                        </StatusBadge>
+                      </TableCell>
+                      {customColumnViews.map((col) => (
+                        <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
+                      ))}
+                      {customColumnViews.length > 0 ? (
+                        <TableCell className="text-right">
+                          <RowCustomFieldsButton
+                            dashboard="ACCOUNTING"
+                            rowId={r.id}
+                            columns={customColumnViews}
+                            customFields={r.customFields}
+                          />
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -117,20 +157,40 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
                   <TableHead>Наименование</TableHead>
                   <TableHead>Дата акта</TableHead>
                   <TableHead>Оригинал</TableHead>
+                  {customColumnViews.map((col) => (
+                    <TableHead key={col.id}>{col.label}</TableHead>
+                  ))}
+                  {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientsRows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.counterpartName}</TableCell>
-                    <TableCell>{formatDateRu(r.actDate)}</TableCell>
-                    <TableCell>
-                      <StatusBadge tone={r.originalReceived ? "success" : "destructive"}>
-                        {r.originalReceived ? "Да" : "Нет"}
-                      </StatusBadge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {clientsRows.map((r) => {
+                  const fi = customFieldsAsRecord(r.customFields);
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.counterpartName}</TableCell>
+                      <TableCell>{formatDateRu(r.actDate)}</TableCell>
+                      <TableCell>
+                        <StatusBadge tone={r.originalReceived ? "success" : "destructive"}>
+                          {r.originalReceived ? "Да" : "Нет"}
+                        </StatusBadge>
+                      </TableCell>
+                      {customColumnViews.map((col) => (
+                        <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
+                      ))}
+                      {customColumnViews.length > 0 ? (
+                        <TableCell className="text-right">
+                          <RowCustomFieldsButton
+                            dashboard="ACCOUNTING"
+                            rowId={r.id}
+                            columns={customColumnViews}
+                            customFields={r.customFields}
+                          />
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

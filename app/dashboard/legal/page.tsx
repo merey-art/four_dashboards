@@ -10,8 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
+import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
+import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
 import { LegalDialogs } from "@/components/dashboards/legal-toolbar";
+import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
 import { StatusBadge } from "@/components/status-badge";
+import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { formatDateRu, ruLegalParty, ruLegalPhase } from "@/lib/i18n";
 import { parseIsoDateRange, prismaDateRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -21,10 +25,24 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
 
   const where = drift ? { contractDate: drift } : {};
 
-  const rows = await prisma.legalContract.findMany({
-    where,
-    orderBy: { contractDate: "desc" },
-  });
+  const [rows, customColumns] = await Promise.all([
+    prisma.legalContract.findMany({
+      where,
+      orderBy: { contractDate: "desc" },
+    }),
+    prisma.dashboardCustomColumn.findMany({
+      where: { dashboard: "LEGAL" },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
+
+  const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
+    id: c.id,
+    key: c.key,
+    label: c.label,
+    fieldType: c.fieldType,
+    sortOrder: c.sortOrder,
+  }));
 
   const signing = rows.filter((r) => r.phase === "SIGNING").length;
   const clientOriginals = rows.filter((r) => r.partyType === "CLIENT" && r.originalReceived).length;
@@ -42,6 +60,8 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
       </Suspense>
 
       <LegalDialogs />
+
+      <DashboardColumnManager dashboard="LEGAL" initialColumns={customColumnViews} />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
@@ -78,6 +98,10 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
                 <TableHead>Статус</TableHead>
                 <TableHead>Оригинал</TableHead>
                 <TableHead>Дата</TableHead>
+                {customColumnViews.map((col) => (
+                  <TableHead key={col.id}>{col.label}</TableHead>
+                ))}
+                {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -85,6 +109,7 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
                 const badge = r.originalReceived
                   ? ({ label: "Да", tone: "success" } as const)
                   : ({ label: "Нет", tone: "destructive" } as const);
+                const fi = customFieldsAsRecord(r.customFields);
                 return (
                   <TableRow key={r.id}>
                     <TableCell>{r.counterparty}</TableCell>
@@ -98,6 +123,19 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
                       <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
                     </TableCell>
                     <TableCell>{formatDateRu(r.contractDate)}</TableCell>
+                    {customColumnViews.map((col) => (
+                      <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
+                    ))}
+                    {customColumnViews.length > 0 ? (
+                      <TableCell className="text-right">
+                        <RowCustomFieldsButton
+                          dashboard="LEGAL"
+                          rowId={r.id}
+                          columns={customColumnViews}
+                          customFields={r.customFields}
+                        />
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })}

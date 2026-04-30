@@ -27,7 +27,13 @@ export function LoginForm() {
     });
     setLoading(false);
     if (res?.error) {
-      setError("Неверный email или пароль");
+      if (res.error === "CredentialsSignin") {
+        setError("Неверный email или пароль");
+      } else if (res.error === "Configuration") {
+        setError("Ошибка конфигурации NextAuth (проверьте NEXTAUTH_SECRET и NEXTAUTH_URL).");
+      } else {
+        setError(`Не удалось войти (${res.error}). Откройте тот же адрес и порт, что в NEXTAUTH_URL в .env.`);
+      }
       return;
     }
     router.refresh();
