@@ -10,11 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
+import { BuiltinColumnLabelsEditor } from "@/components/dashboards/builtin-column-labels-editor";
 import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
-import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
+import { CustomColumnTableHead } from "@/components/dashboards/custom-column-table-head";
+import { EditDashboardRowButton } from "@/components/dashboards/edit-dashboard-row-button";
 import { LegalDialogs } from "@/components/dashboards/legal-toolbar";
-import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
 import { StatusBadge } from "@/components/status-badge";
+import { builtinLabelEditorItems, mergedBuiltinLabels } from "@/lib/builtin-table-columns";
 import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { formatDateRu, ruLegalParty, ruLegalPhase } from "@/lib/i18n";
 import { parseIsoDateRange, prismaDateRange } from "@/lib/dates";
@@ -25,7 +27,7 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
 
   const where = drift ? { contractDate: drift } : {};
 
-  const [rows, customColumns] = await Promise.all([
+  const [rows, customColumns, builtinOverrides] = await Promise.all([
     prisma.legalContract.findMany({
       where,
       orderBy: { contractDate: "desc" },
@@ -34,7 +36,13 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
       where: { dashboard: "LEGAL" },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.dashboardBuiltinColumnLabel.findMany({
+      where: { dashboard: "LEGAL" },
+    }),
   ]);
+
+  const builtinLabelItems = builtinLabelEditorItems("LEGAL", builtinOverrides);
+  const bl = mergedBuiltinLabels("LEGAL", builtinOverrides);
 
   const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
     id: c.id,
@@ -61,7 +69,11 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
 
       <LegalDialogs />
 
-      <DashboardColumnManager dashboard="LEGAL" initialColumns={customColumnViews} />
+      <BuiltinColumnLabelsEditor
+        dashboard="LEGAL"
+        initialBuiltinItems={builtinLabelItems}
+        initialCustomColumns={customColumnViews}
+      />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
@@ -93,15 +105,15 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Контрагент</TableHead>
-                <TableHead>Тип</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Оригинал</TableHead>
-                <TableHead>Дата</TableHead>
+                <TableHead>{bl.counterparty}</TableHead>
+                <TableHead>{bl.partyType}</TableHead>
+                <TableHead>{bl.phase}</TableHead>
+                <TableHead>{bl.originalReceived}</TableHead>
+                <TableHead>{bl.contractDate}</TableHead>
                 {customColumnViews.map((col) => (
-                  <TableHead key={col.id}>{col.label}</TableHead>
+                  <CustomColumnTableHead key={col.id} column={col} />
                 ))}
-                {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
+                <TableHead className="w-10 text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -126,16 +138,22 @@ export default async function LegalPage({ searchParams }: { searchParams: { from
                     {customColumnViews.map((col) => (
                       <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
                     ))}
-                    {customColumnViews.length > 0 ? (
-                      <TableCell className="text-right">
-                        <RowCustomFieldsButton
-                          dashboard="LEGAL"
-                          rowId={r.id}
-                          columns={customColumnViews}
-                          customFields={r.customFields}
-                        />
-                      </TableCell>
-                    ) : null}
+                    <TableCell className="text-right">
+                      <EditDashboardRowButton
+                        dashboard="LEGAL"
+                        rowId={r.id}
+                        labels={bl}
+                        row={{
+                          counterparty: r.counterparty,
+                          partyType: r.partyType,
+                          phase: r.phase,
+                          originalReceived: r.originalReceived,
+                          contractDate: r.contractDate,
+                        }}
+                        customColumns={customColumnViews}
+                        customFields={r.customFields}
+                      />
+                    </TableCell>
                   </TableRow>
                 );
               })}

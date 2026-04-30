@@ -10,11 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
+import { BuiltinColumnLabelsEditor } from "@/components/dashboards/builtin-column-labels-editor";
 import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
-import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
+import { CustomColumnTableHead } from "@/components/dashboards/custom-column-table-head";
+import { EditDashboardRowButton } from "@/components/dashboards/edit-dashboard-row-button";
 import { LogisticsBorderFilter, LogisticsDialogs } from "@/components/dashboards/logistics-toolbar";
-import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
 import { StatusBadge } from "@/components/status-badge";
+import { builtinLabelEditorItems, mergedBuiltinLabels } from "@/lib/builtin-table-columns";
 import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { ruLogisticsStatus } from "@/lib/i18n";
 import { prismaDateRange, parseIsoDateRange } from "@/lib/dates";
@@ -47,7 +49,7 @@ export default async function LogisticsPage({
     ...(border ? { borderCrossing: border } : {}),
   };
 
-  const [rows, borderRows, customColumns] = await Promise.all([
+  const [rows, borderRows, customColumns, builtinOverrides] = await Promise.all([
     prisma.logisticsContainer.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -61,7 +63,13 @@ export default async function LogisticsPage({
       where: { dashboard: "LOGISTICS" },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.dashboardBuiltinColumnLabel.findMany({
+      where: { dashboard: "LOGISTICS" },
+    }),
   ]);
+
+  const builtinLabelItems = builtinLabelEditorItems("LOGISTICS", builtinOverrides);
+  const bl = mergedBuiltinLabels("LOGISTICS", builtinOverrides);
 
   const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
     id: c.id,
@@ -92,7 +100,11 @@ export default async function LogisticsPage({
 
       <LogisticsDialogs />
 
-      <DashboardColumnManager dashboard="LOGISTICS" initialColumns={customColumnViews} />
+      <BuiltinColumnLabelsEditor
+        dashboard="LOGISTICS"
+        initialBuiltinItems={builtinLabelItems}
+        initialCustomColumns={customColumnViews}
+      />
 
       <div className="grid gap-3 md:grid-cols-4">
         <Card>
@@ -130,14 +142,14 @@ export default async function LogisticsPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Контейнер</TableHead>
-                <TableHead>Погран. стык</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Комментарий</TableHead>
+                <TableHead>{bl.containerNumber}</TableHead>
+                <TableHead>{bl.borderCrossing}</TableHead>
+                <TableHead>{bl.status}</TableHead>
+                <TableHead>{bl.routeNote}</TableHead>
                 {customColumnViews.map((col) => (
-                  <TableHead key={col.id}>{col.label}</TableHead>
+                  <CustomColumnTableHead key={col.id} column={col} />
                 ))}
-                {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
+                <TableHead className="w-10 text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -154,16 +166,21 @@ export default async function LogisticsPage({
                     {customColumnViews.map((col) => (
                       <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
                     ))}
-                    {customColumnViews.length > 0 ? (
-                      <TableCell className="text-right">
-                        <RowCustomFieldsButton
-                          dashboard="LOGISTICS"
-                          rowId={r.id}
-                          columns={customColumnViews}
-                          customFields={r.customFields}
-                        />
-                      </TableCell>
-                    ) : null}
+                    <TableCell className="text-right">
+                      <EditDashboardRowButton
+                        dashboard="LOGISTICS"
+                        rowId={r.id}
+                        labels={bl}
+                        row={{
+                          containerNumber: r.containerNumber,
+                          borderCrossing: r.borderCrossing,
+                          routeNote: r.routeNote,
+                          status: r.status,
+                        }}
+                        customColumns={customColumnViews}
+                        customFields={r.customFields}
+                      />
+                    </TableCell>
                   </TableRow>
                 );
               })}

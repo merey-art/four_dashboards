@@ -16,6 +16,16 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Локальный вход (NextAuth)
+
+Если страница логина без стилей или вход не проходит:
+
+1. Открывайте **тот же URL**, который показывает `next dev` (например `http://localhost:3001`).
+2. В `.env` выставьте `NEXTAUTH_URL` на этот же адрес **с тем же портом**.
+3. Добавьте `AUTH_TRUST_HOST=true` — тогда origin для NextAuth берётся из запроса (удобно при смене порта). В репозитории см. `.env.example`.
+
+Без стилей чаще всего открыт **не тот порт** (на порту другой процесс, не этот Next.js).
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

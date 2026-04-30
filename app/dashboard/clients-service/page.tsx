@@ -10,11 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
+import { BuiltinColumnLabelsEditor } from "@/components/dashboards/builtin-column-labels-editor";
 import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
-import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
+import { CustomColumnTableHead } from "@/components/dashboards/custom-column-table-head";
 import { ClientServiceDialogs } from "@/components/dashboards/clients-service-toolbar";
-import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
+import { EditDashboardRowButton } from "@/components/dashboards/edit-dashboard-row-button";
 import { StatusBadge } from "@/components/status-badge";
+import { builtinLabelEditorItems, mergedBuiltinLabels } from "@/lib/builtin-table-columns";
 import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { formatDateRu, badgeCode } from "@/lib/i18n";
 import { parseIsoDateRange, prismaDateRange } from "@/lib/dates";
@@ -29,7 +31,7 @@ export default async function ClientServicePage({
   const range = parseIsoDateRange({ from: sp.from, to: sp.to });
   const drift = prismaDateRange(range);
 
-  const [orders, customColumns] = await Promise.all([
+  const [orders, customColumns, builtinOverrides] = await Promise.all([
     prisma.clientServiceOrder.findMany({
       where: drift ? { expectedDelivery: drift } : {},
       orderBy: { expectedDelivery: "asc" },
@@ -38,7 +40,13 @@ export default async function ClientServicePage({
       where: { dashboard: "CLIENT_SERVICE" },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.dashboardBuiltinColumnLabel.findMany({
+      where: { dashboard: "CLIENT_SERVICE" },
+    }),
   ]);
+
+  const builtinLabelItems = builtinLabelEditorItems("CLIENT_SERVICE", builtinOverrides);
+  const bl = mergedBuiltinLabels("CLIENT_SERVICE", builtinOverrides);
 
   const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
     id: c.id,
@@ -67,7 +75,11 @@ export default async function ClientServicePage({
 
       <ClientServiceDialogs />
 
-      <DashboardColumnManager dashboard="CLIENT_SERVICE" initialColumns={customColumnViews} />
+      <BuiltinColumnLabelsEditor
+        dashboard="CLIENT_SERVICE"
+        initialBuiltinItems={builtinLabelItems}
+        initialCustomColumns={customColumnViews}
+      />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
@@ -99,15 +111,15 @@ export default async function ClientServicePage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Клиент</TableHead>
-                <TableHead>Номер заказа</TableHead>
-                <TableHead className="text-right">Кол-во конт.</TableHead>
-                <TableHead>Ожид. дата</TableHead>
-                <TableHead>Статус кода</TableHead>
+                <TableHead>{bl.clientName}</TableHead>
+                <TableHead>{bl.orderNumber}</TableHead>
+                <TableHead className="text-right">{bl.quantity}</TableHead>
+                <TableHead>{bl.expectedDelivery}</TableHead>
+                <TableHead>{bl.codeIssued}</TableHead>
                 {customColumnViews.map((col) => (
-                  <TableHead key={col.id}>{col.label}</TableHead>
+                  <CustomColumnTableHead key={col.id} column={col} />
                 ))}
-                {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
+                <TableHead className="w-10 text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -126,16 +138,22 @@ export default async function ClientServicePage({
                     {customColumnViews.map((col) => (
                       <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
                     ))}
-                    {customColumnViews.length > 0 ? (
-                      <TableCell className="text-right">
-                        <RowCustomFieldsButton
-                          dashboard="CLIENT_SERVICE"
-                          rowId={o.id}
-                          columns={customColumnViews}
-                          customFields={o.customFields}
-                        />
-                      </TableCell>
-                    ) : null}
+                    <TableCell className="text-right">
+                      <EditDashboardRowButton
+                        dashboard="CLIENT_SERVICE"
+                        rowId={o.id}
+                        labels={bl}
+                        row={{
+                          clientName: o.clientName,
+                          orderNumber: o.orderNumber,
+                          quantity: o.quantity,
+                          expectedDelivery: o.expectedDelivery,
+                          codeIssued: o.codeIssued,
+                        }}
+                        customColumns={customColumnViews}
+                        customFields={o.customFields}
+                      />
+                    </TableCell>
                   </TableRow>
                 );
               })}

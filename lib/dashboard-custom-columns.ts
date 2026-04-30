@@ -5,6 +5,14 @@ import { formatDateRu } from "@/lib/i18n";
 
 export const CUSTOM_FIELD_TYPES: CustomFieldType[] = ["TEXT", "NUMBER", "DATE", "BOOLEAN"];
 
+/** Подписи типов полей для UI */
+export const CUSTOM_FIELD_TYPE_LABELS_RU: Record<CustomFieldType, string> = {
+  TEXT: "Текст",
+  NUMBER: "Число",
+  DATE: "Дата",
+  BOOLEAN: "Да/нет",
+};
+
 export function appRoleForDashboard(dashboard: DashboardKind): AppRole {
   const map: Record<DashboardKind, AppRole> = {
     ACCOUNTING: "ACCOUNTING",

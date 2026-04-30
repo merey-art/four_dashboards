@@ -15,9 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CustomFieldType, DashboardKind } from "@prisma/client";
 
-import { CUSTOM_FIELD_TYPES } from "@/lib/dashboard-custom-columns";
+import { CUSTOM_FIELD_TYPES, CUSTOM_FIELD_TYPE_LABELS_RU } from "@/lib/dashboard-custom-columns";
 
 export type CustomColumnView = {
   id: string;
@@ -25,13 +26,6 @@ export type CustomColumnView = {
   label: string;
   fieldType: CustomFieldType;
   sortOrder: number;
-};
-
-const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
-  TEXT: "Текст",
-  NUMBER: "Число",
-  DATE: "Дата",
-  BOOLEAN: "Да/нет",
 };
 
 export function DashboardColumnManager({
@@ -128,9 +122,18 @@ export function DashboardColumnManager({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">Дополнительные столбцы</p>
+    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">Свои столбцы к таблице</p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Первые колонки в таблице ниже</span> — стандартные поля
+            страницы, они всегда на месте. Здесь вы добавляете{" "}
+            <span className="font-medium text-foreground">ещё столбцы</span>: они появляются в той же таблице{" "}
+            <span className="font-medium text-foreground">справа от стандартных</span>. Создайте столбец кнопкой справа;
+            в списке — «Изменить» и «Удалить»; удалить можно и по корзине в шапке новой колонки.
+          </p>
+        </div>
         <Dialog
           open={openAdd}
           onOpenChange={(v) => {
@@ -142,8 +145,8 @@ export function DashboardColumnManager({
             }
           }}
         >
-          <DialogTrigger render={<Button type="button" size="sm" variant="secondary" />}>
-            Добавить столбец
+          <DialogTrigger render={<Button type="button" size="sm" variant="default" className="shrink-0" />}>
+            Добавить свой столбец
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -168,7 +171,7 @@ export function DashboardColumnManager({
                   <SelectContent>
                     {CUSTOM_FIELD_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {FIELD_TYPE_LABELS[t]}
+                        {CUSTOM_FIELD_TYPE_LABELS_RU[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -188,31 +191,53 @@ export function DashboardColumnManager({
         </Dialog>
       </div>
 
-      {columns.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Пока нет пользовательских столбцов. Создайте первый — он появится в таблице.</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5 text-sm">
-          {columns.map((c) => (
-            <li
-              key={c.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5"
-            >
-              <span>
-                <span className="font-medium">{c.label}</span>
-                <span className="ml-2 text-muted-foreground">({FIELD_TYPE_LABELS[c.fieldType]})</span>
-              </span>
-              <span className="flex gap-1">
-                <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setOpenEditId(c.id)}>
-                  Изменить
-                </Button>
-                <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void removeColumn(c.id)}>
-                  Удалить
-                </Button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[40%]">Ваш столбец (название)</TableHead>
+              <TableHead className="w-[25%]">Тип поля</TableHead>
+              <TableHead className="text-right">Действия</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {columns.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={3} className="py-6 text-center text-sm leading-relaxed text-muted-foreground">
+                  <span className="font-medium text-foreground">Своих дополнительных столбцов пока нет.</span>
+                  <br />
+                  Это не про стандартную шапку таблицы на странице — те колонки заданы системой и отсюда не настраиваются.
+                  Нажмите «Добавить свой столбец» — новые поля появятся в таблице справа, а здесь — кнопки «Изменить» и
+                  «Удалить».
+                </TableCell>
+              </TableRow>
+            ) : (
+              columns.map((c) => (
+                <TableRow key={c.id} className="hover:bg-muted/40">
+                  <TableCell className="font-medium">{c.label}</TableCell>
+                  <TableCell className="text-muted-foreground">{CUSTOM_FIELD_TYPE_LABELS_RU[c.fieldType]}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setOpenEditId(c.id)}>
+                        Изменить
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={busy}
+                        onClick={() => void removeColumn(c.id)}
+                      >
+                        Удалить
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <Dialog
         open={!!openEditId}
@@ -243,7 +268,7 @@ export function DashboardColumnManager({
                 <SelectContent>
                   {CUSTOM_FIELD_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {FIELD_TYPE_LABELS[t]}
+                      {CUSTOM_FIELD_TYPE_LABELS_RU[t]}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -35,6 +35,17 @@ model DashboardCustomColumn {
   @@index([dashboard, sortOrder])
 }
 
+model DashboardBuiltinColumnLabel {
+  id        String          @id @default(cuid())
+  dashboard DashboardKind
+  fieldKey  String
+  label     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([dashboard, fieldKey])
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique

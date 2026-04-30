@@ -11,10 +11,12 @@ import {
 } from "@/components/ui/table";
 import { DashboardDateFilter } from "@/components/dashboard-date-filter";
 import { AccountingDialogs } from "@/components/dashboards/accounting-toolbar";
+import { BuiltinColumnLabelsEditor } from "@/components/dashboards/builtin-column-labels-editor";
 import type { CustomColumnView } from "@/components/dashboards/dashboard-column-manager";
-import { DashboardColumnManager } from "@/components/dashboards/dashboard-column-manager";
-import { RowCustomFieldsButton } from "@/components/dashboards/row-custom-fields-button";
+import { CustomColumnTableHead } from "@/components/dashboards/custom-column-table-head";
+import { EditDashboardRowButton } from "@/components/dashboards/edit-dashboard-row-button";
 import { StatusBadge } from "@/components/status-badge";
+import { builtinLabelEditorItems, mergedBuiltinLabels } from "@/lib/builtin-table-columns";
 import { customFieldsAsRecord, formatCustomFieldCell } from "@/lib/dashboard-custom-columns";
 import { formatDateRu } from "@/lib/i18n";
 import { parseIsoDateRange, prismaDateRange } from "@/lib/dates";
@@ -25,7 +27,7 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
 
   const where = drift ? { actDate: drift } : {};
 
-  const [rows, customColumns] = await Promise.all([
+  const [rows, customColumns, builtinOverrides] = await Promise.all([
     prisma.accountingAct.findMany({
       where,
       orderBy: { actDate: "desc" },
@@ -34,7 +36,13 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
       where: { dashboard: "ACCOUNTING" },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.dashboardBuiltinColumnLabel.findMany({
+      where: { dashboard: "ACCOUNTING" },
+    }),
   ]);
+
+  const builtinLabelItems = builtinLabelEditorItems("ACCOUNTING", builtinOverrides);
+  const bl = mergedBuiltinLabels("ACCOUNTING", builtinOverrides);
 
   const customColumnViews: CustomColumnView[] = customColumns.map((c) => ({
     id: c.id,
@@ -65,7 +73,11 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
 
       <AccountingDialogs />
 
-      <DashboardColumnManager dashboard="ACCOUNTING" initialColumns={customColumnViews} />
+      <BuiltinColumnLabelsEditor
+        dashboard="ACCOUNTING"
+        initialBuiltinItems={builtinLabelItems}
+        initialCustomColumns={customColumnViews}
+      />
 
       <div className="grid gap-3 md:grid-cols-4">
         <Card>
@@ -104,13 +116,13 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Наименование</TableHead>
-                  <TableHead>Дата акта</TableHead>
-                  <TableHead>Оригинал</TableHead>
+                  <TableHead>{bl.counterpartName}</TableHead>
+                  <TableHead>{bl.actDate}</TableHead>
+                  <TableHead>{bl.originalReceived}</TableHead>
                   {customColumnViews.map((col) => (
-                    <TableHead key={col.id}>{col.label}</TableHead>
+                    <CustomColumnTableHead key={col.id} column={col} />
                   ))}
-                  {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
+                  <TableHead className="w-10 text-right" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -128,16 +140,22 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
                       {customColumnViews.map((col) => (
                         <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
                       ))}
-                      {customColumnViews.length > 0 ? (
-                        <TableCell className="text-right">
-                          <RowCustomFieldsButton
-                            dashboard="ACCOUNTING"
-                            rowId={r.id}
-                            columns={customColumnViews}
-                            customFields={r.customFields}
-                          />
-                        </TableCell>
-                      ) : null}
+                      <TableCell className="text-right">
+                        <EditDashboardRowButton
+                          dashboard="ACCOUNTING"
+                          rowId={r.id}
+                          labels={bl}
+                          row={{
+                            counterpartName: r.counterpartName,
+                            party: r.party,
+                            actKind: r.actKind,
+                            actDate: r.actDate,
+                            originalReceived: r.originalReceived,
+                          }}
+                          customColumns={customColumnViews}
+                          customFields={r.customFields}
+                        />
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -154,13 +172,13 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Наименование</TableHead>
-                  <TableHead>Дата акта</TableHead>
-                  <TableHead>Оригинал</TableHead>
+                  <TableHead>{bl.counterpartName}</TableHead>
+                  <TableHead>{bl.actDate}</TableHead>
+                  <TableHead>{bl.originalReceived}</TableHead>
                   {customColumnViews.map((col) => (
-                    <TableHead key={col.id}>{col.label}</TableHead>
+                    <CustomColumnTableHead key={col.id} column={col} />
                   ))}
-                  {customColumnViews.length > 0 ? <TableHead className="w-10 text-right" /> : null}
+                  <TableHead className="w-10 text-right" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,16 +196,22 @@ export default async function AccountingPage({ searchParams }: { searchParams: {
                       {customColumnViews.map((col) => (
                         <TableCell key={col.key}>{formatCustomFieldCell(fi[col.key], col.fieldType)}</TableCell>
                       ))}
-                      {customColumnViews.length > 0 ? (
-                        <TableCell className="text-right">
-                          <RowCustomFieldsButton
-                            dashboard="ACCOUNTING"
-                            rowId={r.id}
-                            columns={customColumnViews}
-                            customFields={r.customFields}
-                          />
-                        </TableCell>
-                      ) : null}
+                      <TableCell className="text-right">
+                        <EditDashboardRowButton
+                          dashboard="ACCOUNTING"
+                          rowId={r.id}
+                          labels={bl}
+                          row={{
+                            counterpartName: r.counterpartName,
+                            party: r.party,
+                            actKind: r.actKind,
+                            actDate: r.actDate,
+                            originalReceived: r.originalReceived,
+                          }}
+                          customColumns={customColumnViews}
+                          customFields={r.customFields}
+                        />
+                      </TableCell>
                     </TableRow>
                   );
                 })}
